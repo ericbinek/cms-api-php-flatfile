@@ -1,0 +1,13 @@
+name: cms-api-php-flatfile
+
+services:
+  app:
+    container_name: cms-api-php-flatfile
+    build: .
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./data:/app/data
+    environment:
+      PORT: "3002"
+      DATA_DIR: /app/data
