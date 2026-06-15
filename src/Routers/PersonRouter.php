@@ -5,19 +5,24 @@ namespace Cms\Routers;
 
 use Cms\Http;
 use Cms\Errors;
+use Cms\Lib\Access;
 use Cms\Models\Person;
 
 final class PersonRouter
 {
     public const BASE = '/persons';
+    private const ENTITY = 'Person';
     private const MAX_LIMIT = 100;
     private const DEFAULT_LIMIT = 20;
     private const SYSTEM_FILTER_KEYS = ['limit', 'offset', 'sort', 'order'];
 
-    public static function handle(string $method, string $path, string $requestPath): bool
+    /**
+     * @param array{role: string, accountId: ?string, username: ?string} $principal
+     */
+    public static function handle(string $method, string $path, string $requestPath, array $principal): bool
     {
         if ($path === self::BASE) {
-            self::handleCollection($method, $requestPath);
+            self::handleCollection($method, $requestPath, $principal);
             return true;
         }
         if (str_starts_with($path, self::BASE . '/')) {
@@ -25,58 +30,114 @@ final class PersonRouter
             if (str_contains($rest, '/')) {
                 return false;
             }
-            self::handleItem($method, $rest, $requestPath);
+            self::handleItem($method, $rest, $requestPath, $principal);
             return true;
         }
         return false;
     }
 
-    private static function handleCollection(string $method, string $requestPath): void
+    /**
+     * @param array{role: string, accountId: ?string, username: ?string} $principal
+     */
+    private static function handleCollection(string $method, string $requestPath, array $principal): void
     {
+        $role = $principal['role'];
+
         if ($method === 'GET') {
+            if (!Access::can($role, self::ENTITY, 'read')) {
+                Http::jsonError(Errors::forbidden("Role \"$role\" may not read " . self::ENTITY . '.', $requestPath));
+                return;
+            }
             $opts = self::parseListOptions();
             if (!empty($opts['errors'])) {
                 Http::jsonError(Errors::validation($opts['errors'], $requestPath));
                 return;
             }
+            // Apply read visibility on the full filtered set, then paginate, so
+            // total counts only the records this principal may see. Internal
+            // fields stripped.
+            $offset = $opts['offset'];
+            $limit = $opts['limit'];
+            $opts['offset'] = 0;
+            $opts['limit'] = PHP_INT_MAX;
             unset($opts['errors']);
-            Http::json(200, Person::findAll($opts));
+            $all = Person::findAll($opts);
+            $visible = array_values(array_filter(
+                $all['items'],
+                static fn ($item) => Access::isVisible($role, self::ENTITY, $item),
+            ));
+            $items = array_map(
+                static fn ($item) => Access::stripFields($role, $item),
+                array_slice($visible, $offset, $limit),
+            );
+            Http::json(200, ['items' => $items, 'total' => count($visible)]);
             return;
         }
+
         if ($method === 'POST') {
+            if (!Access::can($role, self::ENTITY, 'create')) {
+                Http::jsonError(Errors::forbidden("Role \"$role\" may not create " . self::ENTITY . '.', $requestPath));
+                return;
+            }
             $body = Http::parseBody();
+            $readonly = Access::readonlyViolations($role, $body);
+            if (!empty($readonly)) {
+                Http::jsonError(Errors::validation(['Fields are not writable: ' . implode(', ', $readonly) . '.'], $requestPath));
+                return;
+            }
             $errors = Person::validate($body);
             if (!empty($errors)) {
                 Http::jsonError(Errors::validation($errors, $requestPath));
                 return;
             }
-            $created = Person::create($body);
+            $created = Person::create(Access::applyCreateDefaults(self::ENTITY, $body, $principal['accountId']));
             Http::setLocation(self::BASE . '/' . $created['id']);
-            Http::json(201, $created);
+            Http::json(201, Access::stripFields($role, $created));
             return;
         }
+
         Http::jsonError(Errors::methodNotAllowed(['GET', 'POST'], $requestPath));
     }
 
-    private static function handleItem(string $method, string $id, string $requestPath): void
+    /**
+     * @param array{role: string, accountId: ?string, username: ?string} $principal
+     */
+    private static function handleItem(string $method, string $id, string $requestPath, array $principal): void
     {
+        $role = $principal['role'];
+
         if (!Http::isValidUuid($id)) {
             Http::jsonError(Errors::invalidId($requestPath));
             return;
         }
 
         if ($method === 'GET') {
+            if (!Access::can($role, self::ENTITY, 'read')) {
+                Http::jsonError(Errors::forbidden("Role \"$role\" may not read " . self::ENTITY . '.', $requestPath));
+                return;
+            }
             $item = Person::findById($id);
-            if ($item === null) {
+            // A record the principal may not see is indistinguishable from a
+            // missing one (404, never 403) so its existence is not disclosed.
+            if ($item === null || !Access::isVisible($role, self::ENTITY, $item)) {
                 Http::jsonError(Errors::notFound(Person::TYPE_NAME, $requestPath));
                 return;
             }
-            Http::json(200, Person::embedRefs($item));
+            Http::json(200, Access::stripFields($role, Person::embedRefs($item)));
             return;
         }
 
         if ($method === 'PUT') {
+            if (!Access::can($role, self::ENTITY, 'update')) {
+                Http::jsonError(Errors::forbidden("Role \"$role\" may not update " . self::ENTITY . '.', $requestPath));
+                return;
+            }
             $body = Http::parseBody();
+            $readonly = Access::readonlyViolations($role, $body);
+            if (!empty($readonly)) {
+                Http::jsonError(Errors::validation(['Fields are not writable: ' . implode(', ', $readonly) . '.'], $requestPath));
+                return;
+            }
             $errors = Person::validate($body, partial: true);
             if (!empty($errors)) {
                 Http::jsonError(Errors::validation($errors, $requestPath));
@@ -87,20 +148,44 @@ final class PersonRouter
                 Http::jsonError(Errors::notFound(Person::TYPE_NAME, $requestPath));
                 return;
             }
+            $ownerField = Access::ownershipField($role, 'update');
+            if ($ownerField !== null && ($current[$ownerField] ?? null) !== $principal['accountId']) {
+                Http::jsonError(Errors::forbidden('You may only modify your own records.', $requestPath));
+                return;
+            }
             $ifMatch = $_SERVER['HTTP_IF_MATCH'] ?? null;
             if ($ifMatch !== null && $ifMatch !== '*' && $ifMatch !== Person::etagOf($current)) {
                 Http::jsonError(Errors::preconditionFailed($requestPath));
                 return;
             }
+            $status = Access::statusProperty(self::ENTITY);
+            if ($status !== null && array_key_exists($status, $body) && ($body[$status] ?? null) !== ($current[$status] ?? null)) {
+                if (!Access::transitionAllowed(self::ENTITY, $current[$status] ?? null, $body[$status], $role)) {
+                    Http::jsonError(Errors::forbidden(
+                        'Status transition ' . ($current[$status] ?? 'null') . ' -> ' . $body[$status] . " is not allowed for role \"$role\".",
+                        $requestPath,
+                    ));
+                    return;
+                }
+            }
             $updated = Person::update($id, $body);
-            Http::json(200, $updated);
+            Http::json(200, Access::stripFields($role, $updated));
             return;
         }
 
         if ($method === 'DELETE') {
+            if (!Access::can($role, self::ENTITY, 'delete')) {
+                Http::jsonError(Errors::forbidden("Role \"$role\" may not delete " . self::ENTITY . '.', $requestPath));
+                return;
+            }
             $current = Person::findById($id);
             if ($current === null) {
                 Http::jsonError(Errors::notFound(Person::TYPE_NAME, $requestPath));
+                return;
+            }
+            $ownerField = Access::ownershipField($role, 'delete');
+            if ($ownerField !== null && ($current[$ownerField] ?? null) !== $principal['accountId']) {
+                Http::jsonError(Errors::forbidden('You may only delete your own records.', $requestPath));
                 return;
             }
             $ifMatch = $_SERVER['HTTP_IF_MATCH'] ?? null;

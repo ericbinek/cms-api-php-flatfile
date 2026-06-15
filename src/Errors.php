@@ -31,6 +31,17 @@ final class Errors
         return self::build(400, 'INVALID_ID', 'ID must be a valid UUID.', [], $path);
     }
 
+    public static function unauthorized(string $path): array
+    {
+        return self::build(401, 'UNAUTHORIZED', 'Authentication is required, or the session is invalid or expired.', [], $path);
+    }
+
+    public static function forbidden(string $message, string $path): array
+    {
+        $detail = $message !== '' ? $message : 'You do not have permission to perform this operation.';
+        return self::build(403, 'FORBIDDEN', $detail, [], $path);
+    }
+
     public static function notFound(string $resource, string $path): array
     {
         return self::build(404, 'NOT_FOUND', "$resource not found.", [], $path);

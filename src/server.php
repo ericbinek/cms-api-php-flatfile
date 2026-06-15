@@ -8,6 +8,10 @@ require_once __DIR__ . '/autoload.php';
 
 use Cms\Http;
 use Cms\Errors;
+use Cms\Lib\Auth;
+use Cms\Lib\UnauthorizedException;
+use Cms\Models\Account;
+use Cms\Routers\AuthRouter;
 use Cms\Routers\BlogPostingRouter;
 use Cms\Routers\PersonRouter;
 use Cms\Routers\WebPageRouter;
@@ -44,6 +48,25 @@ try {
         return;
     }
 
+    // Bootstrap the first admin (if configured) before handling protected paths.
+    Account::seedAdmin();
+
+    // Auth middleware: resolve the principal before routing. A presented but
+    // invalid credential is 401; no credential is the anonymous principal.
+    $principal = Auth::resolvePrincipal();
+
+    if ($path === '/auth' || str_starts_with($path, '/auth/')) {
+        if (AuthRouter::handle($method, $path, $requestPath, $principal)) {
+            return;
+        }
+    }
+
+    // Writes require a session — no role grants anonymous writes (401, not 403).
+    if (Auth::requiresSession($method, $principal)) {
+        Http::jsonError(Errors::unauthorized($requestPath));
+        return;
+    }
+
     $routers = [
     BlogPostingRouter::class,
     PersonRouter::class,
@@ -57,12 +80,14 @@ try {
     WebSiteRouter::class,
     ];
     foreach ($routers as $router) {
-        if ($router::handle($method, $path, $requestPath)) {
+        if ($router::handle($method, $path, $requestPath, $principal)) {
             return;
         }
     }
 
     Http::jsonError(Errors::routeNotFound($requestPath));
+} catch (UnauthorizedException) {
+    Http::jsonError(Errors::unauthorized($requestPath));
 } catch (\JsonException) {
     Http::jsonError(Errors::invalidJson($requestPath));
 } catch (\Cms\UnsupportedMediaTypeException) {

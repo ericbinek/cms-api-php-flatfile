@@ -12,6 +12,9 @@ function test(string $name, callable $fn): void
     $tests[] = [$name, $fn];
 }
 
+// Shared server for the entity suite. It is seeded with one admin (who sees and
+// may do everything), so the CRUD contract is exercised through the auth layer
+// unchanged. The conformance suite starts its own servers with specific seeds.
 $server = cms_start_server();
 register_shutdown_function(static function () use (&$server) {
     if ($server !== null) cms_stop_server($server);
@@ -34,6 +37,10 @@ if (!$healthy) {
     error_log("Server did not become healthy.");
     exit(2);
 }
+
+// Authenticate as the seeded admin and attach the token to subsequent requests,
+// so the entity suite drives writes through the auth layer.
+cms_set_auth_token($server['token']);
 
 foreach (glob(__DIR__ . '/../test/*.test.php') as $file) {
     require $file;
