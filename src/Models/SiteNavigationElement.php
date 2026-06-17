@@ -6,34 +6,26 @@ namespace Cms\Models;
 use Cms\Lib\Storage;
 use Cms\Lib\Validation;
 
-final class WebPage
+final class SiteNavigationElement
 {
-    public const TYPE_NAME = 'WebPage';
-    public const COLLECTION_FILE = 'web-pages.json';
+    public const TYPE_NAME = 'SiteNavigationElement';
+    public const COLLECTION_FILE = 'site-navigation-elements.json';
 
     public const FIELDS = [
-        'headline' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'text' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'author' => ['kind' => 'ref', 'targets' => ['Person'], 'cardinality' => 'one'],
-        'publisher' => ['kind' => 'ref', 'targets' => ['Organization'], 'cardinality' => 'one'],
-        'primaryImageOfPage' => ['kind' => 'ref', 'targets' => ['ImageObject'], 'cardinality' => 'one'],
-        'isPartOf' => ['kind' => 'ref', 'targets' => ['WebSite'], 'cardinality' => 'one'],
-        'datePublished' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
-        'dateModified' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
-        'dateCreated' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
+        'name' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
         'url' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
-        'inLanguage' => ['kind' => 'embed', 'type' => 'Language', 'cardinality' => 'one'],
-        'creativeWorkStatus' => ['kind' => 'enum', 'values' => ['Draft', 'Pending', 'Published', 'Archived'], 'cardinality' => 'one'],
+        'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
+        'position' => ['kind' => 'scalar', 'type' => 'Integer', 'cardinality' => 'one'],
+        'isPartOf' => ['kind' => 'ref', 'targets' => ['SiteNavigationElement'], 'cardinality' => 'one'],
     ];
 
-    public const REQUIRED_FIELDS = ['headline'];
-    public const SEARCHABLE_FIELDS = ['headline', 'description', 'text'];
-    public const SORTABLE_FIELDS = ['dateCreated', 'dateModified', 'headline', 'description', 'text', 'datePublished', 'dateModified', 'dateCreated', 'url', 'creativeWorkStatus'];
+    public const REQUIRED_FIELDS = ['name', 'url'];
+    public const SEARCHABLE_FIELDS = ['name', 'description'];
+    public const SORTABLE_FIELDS = ['dateCreated', 'dateModified', 'name', 'url', 'description', 'position'];
 
     private const SYSTEM_FIELDS = ['id', 'dateCreated', 'dateModified', '@context', '@type'];
 
-    private const REF_COLLECTIONS = ['Person' => 'persons.json', 'Organization' => 'organizations.json', 'ImageObject' => 'image-objects.json', 'WebSite' => 'web-sites.json'];
+    private const REF_COLLECTIONS = ['SiteNavigationElement' => 'site-navigation-elements.json'];
 
     public static function validate(array $data, bool $partial = false): array
     {

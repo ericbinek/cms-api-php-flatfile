@@ -5,14 +5,18 @@ use Cms\Models\Account;
 use Cms\Lib\Access;
 use Cms\Models\BlogPosting;
 use Cms\Models\Person;
+use Cms\Models\Organization;
 use Cms\Models\WebPage;
 use Cms\Models\ImageObject;
+use Cms\Models\VideoObject;
+use Cms\Models\AudioObject;
 use Cms\Models\CategoryCode;
 use Cms\Models\CategoryCodeSet;
 use Cms\Models\DefinedTerm;
 use Cms\Models\DefinedTermSet;
 use Cms\Models\Comment;
 use Cms\Models\WebSite;
+use Cms\Models\SiteNavigationElement;
 
 $BASE_URL = '';
 
@@ -56,9 +60,22 @@ function cms_account_record(array $account): array
  * Pass ['accounts' => [...]] to seed a specific set, or ['env' => [...]] to
  * exercise the env bootstrap (no store written).
  */
+function cms_free_port(): int
+{
+    // Ask the OS for a free port instead of guessing one. Tests run in
+    // parallel; a guessed port from a fixed range collides (EADDRINUSE).
+    $sock = @stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+    if ($sock === false) {
+        throw new RuntimeException("Cannot allocate a free port: $errstr ($errno)");
+    }
+    $name = stream_socket_get_name($sock, false);
+    fclose($sock);
+    return (int) substr($name, strrpos($name, ':') + 1);
+}
+
 function cms_start_server(array $opts = []): array
 {
-    $port = 14000 + random_int(0, 1000);
+    $port = cms_free_port();
     $dataDir = sys_get_temp_dir() . '/cms-test-' . bin2hex(random_bytes(4));
     if (!mkdir($dataDir, 0755, true) && !is_dir($dataDir)) {
         throw new RuntimeException("Cannot create data dir: $dataDir");
@@ -233,14 +250,18 @@ function cms_plural(string $entity): string
 const CMS_MODELS = [
     'BlogPosting' => BlogPosting::class,
     'Person' => Person::class,
+    'Organization' => Organization::class,
     'WebPage' => WebPage::class,
     'ImageObject' => ImageObject::class,
+    'VideoObject' => VideoObject::class,
+    'AudioObject' => AudioObject::class,
     'CategoryCode' => CategoryCode::class,
     'CategoryCodeSet' => CategoryCodeSet::class,
     'DefinedTerm' => DefinedTerm::class,
     'DefinedTermSet' => DefinedTermSet::class,
     'Comment' => Comment::class,
     'WebSite' => WebSite::class,
+    'SiteNavigationElement' => SiteNavigationElement::class,
 ];
 
 const CMS_SCALAR_SAMPLES = [

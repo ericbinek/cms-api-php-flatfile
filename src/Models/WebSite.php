@@ -17,6 +17,7 @@ final class WebSite
         'url' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
         'inLanguage' => ['kind' => 'embed', 'type' => 'Language', 'cardinality' => 'one'],
         'image' => ['kind' => 'ref', 'targets' => ['ImageObject'], 'cardinality' => 'one'],
+        'publisher' => ['kind' => 'ref', 'targets' => ['Organization'], 'cardinality' => 'one'],
     ];
 
     public const REQUIRED_FIELDS = ['name', 'url'];
@@ -25,7 +26,7 @@ final class WebSite
 
     private const SYSTEM_FIELDS = ['id', 'dateCreated', 'dateModified', '@context', '@type'];
 
-    private const REF_COLLECTIONS = ['ImageObject' => 'image-objects.json'];
+    private const REF_COLLECTIONS = ['ImageObject' => 'image-objects.json', 'Organization' => 'organizations.json'];
 
     public static function validate(array $data, bool $partial = false): array
     {

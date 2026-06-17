@@ -20,6 +20,7 @@ final class Person
         'url' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
         'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
         'image' => ['kind' => 'ref', 'targets' => ['ImageObject'], 'cardinality' => 'one'],
+        'worksFor' => ['kind' => 'ref', 'targets' => ['Organization'], 'cardinality' => 'one'],
         'jobTitle' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
         'sameAs' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'many'],
     ];
@@ -30,7 +31,7 @@ final class Person
 
     private const SYSTEM_FIELDS = ['id', 'dateCreated', 'dateModified', '@context', '@type'];
 
-    private const REF_COLLECTIONS = ['ImageObject' => 'image-objects.json'];
+    private const REF_COLLECTIONS = ['ImageObject' => 'image-objects.json', 'Organization' => 'organizations.json'];
 
     public static function validate(array $data, bool $partial = false): array
     {

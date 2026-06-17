@@ -14,14 +14,18 @@ use Cms\Models\Account;
 use Cms\Routers\AuthRouter;
 use Cms\Routers\BlogPostingRouter;
 use Cms\Routers\PersonRouter;
+use Cms\Routers\OrganizationRouter;
 use Cms\Routers\WebPageRouter;
 use Cms\Routers\ImageObjectRouter;
+use Cms\Routers\VideoObjectRouter;
+use Cms\Routers\AudioObjectRouter;
 use Cms\Routers\CategoryCodeRouter;
 use Cms\Routers\CategoryCodeSetRouter;
 use Cms\Routers\DefinedTermRouter;
 use Cms\Routers\DefinedTermSetRouter;
 use Cms\Routers\CommentRouter;
 use Cms\Routers\WebSiteRouter;
+use Cms\Routers\SiteNavigationElementRouter;
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -70,14 +74,18 @@ try {
     $routers = [
     BlogPostingRouter::class,
     PersonRouter::class,
+    OrganizationRouter::class,
     WebPageRouter::class,
     ImageObjectRouter::class,
+    VideoObjectRouter::class,
+    AudioObjectRouter::class,
     CategoryCodeRouter::class,
     CategoryCodeSetRouter::class,
     DefinedTermRouter::class,
     DefinedTermSetRouter::class,
     CommentRouter::class,
     WebSiteRouter::class,
+    SiteNavigationElementRouter::class,
     ];
     foreach ($routers as $router) {
         if ($router::handle($method, $path, $requestPath, $principal)) {

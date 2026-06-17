@@ -6,34 +6,34 @@ namespace Cms\Models;
 use Cms\Lib\Storage;
 use Cms\Lib\Validation;
 
-final class WebPage
+final class VideoObject
 {
-    public const TYPE_NAME = 'WebPage';
-    public const COLLECTION_FILE = 'web-pages.json';
+    public const TYPE_NAME = 'VideoObject';
+    public const COLLECTION_FILE = 'video-objects.json';
 
     public const FIELDS = [
-        'headline' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
+        'name' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
         'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'text' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'author' => ['kind' => 'ref', 'targets' => ['Person'], 'cardinality' => 'one'],
-        'publisher' => ['kind' => 'ref', 'targets' => ['Organization'], 'cardinality' => 'one'],
-        'primaryImageOfPage' => ['kind' => 'ref', 'targets' => ['ImageObject'], 'cardinality' => 'one'],
-        'isPartOf' => ['kind' => 'ref', 'targets' => ['WebSite'], 'cardinality' => 'one'],
-        'datePublished' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
-        'dateModified' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
-        'dateCreated' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
-        'url' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
-        'inLanguage' => ['kind' => 'embed', 'type' => 'Language', 'cardinality' => 'one'],
-        'creativeWorkStatus' => ['kind' => 'enum', 'values' => ['Draft', 'Pending', 'Published', 'Archived'], 'cardinality' => 'one'],
+        'contentUrl' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
+        'embedUrl' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
+        'encodingFormat' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
+        'duration' => ['kind' => 'scalar', 'type' => 'Duration', 'cardinality' => 'one'],
+        'videoQuality' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
+        'transcript' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
+        'caption' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
+        'uploadDate' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
+        'creator' => ['kind' => 'ref', 'targets' => ['Person'], 'cardinality' => 'one'],
+        'thumbnail' => ['kind' => 'ref', 'targets' => ['ImageObject'], 'cardinality' => 'one'],
+        'productionCompany' => ['kind' => 'ref', 'targets' => ['Organization'], 'cardinality' => 'one'],
     ];
 
-    public const REQUIRED_FIELDS = ['headline'];
-    public const SEARCHABLE_FIELDS = ['headline', 'description', 'text'];
-    public const SORTABLE_FIELDS = ['dateCreated', 'dateModified', 'headline', 'description', 'text', 'datePublished', 'dateModified', 'dateCreated', 'url', 'creativeWorkStatus'];
+    public const REQUIRED_FIELDS = ['contentUrl'];
+    public const SEARCHABLE_FIELDS = ['name', 'description', 'encodingFormat', 'videoQuality', 'transcript', 'caption'];
+    public const SORTABLE_FIELDS = ['dateCreated', 'dateModified', 'name', 'description', 'contentUrl', 'embedUrl', 'encodingFormat', 'duration', 'videoQuality', 'transcript', 'caption', 'uploadDate'];
 
     private const SYSTEM_FIELDS = ['id', 'dateCreated', 'dateModified', '@context', '@type'];
 
-    private const REF_COLLECTIONS = ['Person' => 'persons.json', 'Organization' => 'organizations.json', 'ImageObject' => 'image-objects.json', 'WebSite' => 'web-sites.json'];
+    private const REF_COLLECTIONS = ['Person' => 'persons.json', 'ImageObject' => 'image-objects.json', 'Organization' => 'organizations.json'];
 
     public static function validate(array $data, bool $partial = false): array
     {

@@ -17,7 +17,10 @@ final class BlogPosting
         'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
         'articleBody' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
         'author' => ['kind' => 'ref', 'targets' => ['Person'], 'cardinality' => 'one'],
+        'publisher' => ['kind' => 'ref', 'targets' => ['Organization'], 'cardinality' => 'one'],
         'image' => ['kind' => 'ref', 'targets' => ['ImageObject'], 'cardinality' => 'many'],
+        'video' => ['kind' => 'ref', 'targets' => ['VideoObject'], 'cardinality' => 'many'],
+        'audio' => ['kind' => 'ref', 'targets' => ['AudioObject'], 'cardinality' => 'many'],
         'keywords' => ['kind' => 'ref', 'targets' => ['DefinedTerm'], 'cardinality' => 'many'],
         'about' => ['kind' => 'ref', 'targets' => ['CategoryCode'], 'cardinality' => 'many'],
         'datePublished' => ['kind' => 'scalar', 'type' => 'DateTime', 'cardinality' => 'one'],
@@ -36,7 +39,7 @@ final class BlogPosting
 
     private const SYSTEM_FIELDS = ['id', 'dateCreated', 'dateModified', '@context', '@type'];
 
-    private const REF_COLLECTIONS = ['Person' => 'persons.json', 'ImageObject' => 'image-objects.json', 'DefinedTerm' => 'defined-terms.json', 'CategoryCode' => 'category-codes.json'];
+    private const REF_COLLECTIONS = ['Person' => 'persons.json', 'Organization' => 'organizations.json', 'ImageObject' => 'image-objects.json', 'VideoObject' => 'video-objects.json', 'AudioObject' => 'audio-objects.json', 'DefinedTerm' => 'defined-terms.json', 'CategoryCode' => 'category-codes.json'];
 
     public static function validate(array $data, bool $partial = false): array
     {
