@@ -12,9 +12,9 @@ final class DefinedTermSet
     public const COLLECTION_FILE = 'defined-term-sets.json';
 
     public const FIELDS = [
-        'name' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one'],
-        'url' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one'],
+        'name' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one', 'maxLength' => 256],
+        'description' => ['kind' => 'scalar', 'type' => 'Text', 'cardinality' => 'one', 'maxLength' => 5000, 'multiline' => true],
+        'url' => ['kind' => 'scalar', 'type' => 'URL', 'cardinality' => 'one', 'maxLength' => 2048],
     ];
 
     public const REQUIRED_FIELDS = ['name'];
@@ -107,6 +107,9 @@ final class DefinedTermSet
                 if (!Validation::checkScalar($spec['type'], $value)) {
                     return ["Field \"$path\" must be a {$spec['type']}."];
                 }
+                if (isset($spec['maxLength']) && is_string($value) && mb_strlen($value) > $spec['maxLength']) {
+                    return ["Field \"$path\" must be at most {$spec['maxLength']} characters."];
+                }
                 return [];
             case 'enum':
                 if (!in_array($value, $spec['values'], true)) {
@@ -126,6 +129,30 @@ final class DefinedTermSet
                 return [];
         }
         return ["Field \"$path\" has unknown shape."];
+    }
+
+    // Field-aware input cleaning, run before validation and storage: each known
+    // scalar string is normalized, stripped of control characters and trimmed,
+    // with long-form (multiline) fields keeping their internal line breaks. Refs,
+    // embeds, arrays and other values fall back to the conservative property-blind
+    // sanitizer. The body is cleaned in place: every key is left where it is —
+    // dangerous keys (__proto__, …) are deliberately untouched so validate() can
+    // reject the body, rather than silently dropped here.
+    public static function sanitize(array $data): array
+    {
+        foreach (array_keys($data) as $key) {
+            if (is_string($key) && Validation::isDangerousKey($key)) {
+                continue;
+            }
+            $value = $data[$key];
+            $spec = self::FIELDS[$key] ?? null;
+            if ($spec !== null && $spec['kind'] === 'scalar' && is_string($value)) {
+                $data[$key] = Validation::sanitizeString($value, $spec['multiline'] ?? false);
+            } else {
+                $data[$key] = Validation::deepSanitize($value);
+            }
+        }
+        return $data;
     }
 
     private static function normalizeRefs(array $data): array
@@ -267,7 +294,7 @@ final class DefinedTermSet
     public static function create(array $rawData): array
     {
         return Storage::withLock(self::COLLECTION_FILE, function () use ($rawData) {
-            $data = self::normalizeRefs(Validation::deepSanitize($rawData));
+            $data = self::normalizeRefs($rawData);
             $items = Storage::readCollection(self::COLLECTION_FILE);
             $now = gmdate('Y-m-d\TH:i:s.') . substr(sprintf('%03d', (int) ((microtime(true) - (int) microtime(true)) * 1000)), 0, 3) . 'Z';
             // Client data first, then the system-controlled fields — so a client
@@ -304,7 +331,7 @@ final class DefinedTermSet
                 return null;
             }
             $current = $items[$index];
-            $data = self::normalizeRefs(Validation::deepSanitize($rawData));
+            $data = self::normalizeRefs($rawData);
             $now = gmdate('Y-m-d\TH:i:s.') . substr(sprintf('%03d', (int) ((microtime(true) - (int) microtime(true)) * 1000)), 0, 3) . 'Z';
             $updated = array_merge(
                 $current,

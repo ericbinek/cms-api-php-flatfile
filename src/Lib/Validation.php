@@ -18,11 +18,20 @@ final class Validation
         return in_array($k, self::DANGEROUS_KEYS, true);
     }
 
-    public static function sanitizeString(string $v): string
+    // Normalize, strip control characters, then trim. The multiline variant keeps
+    // Tab/Newline/Carriage Return so long-form text can hold line breaks; the
+    // default removes those too. Null bytes and the C1 block are always removed.
+    public static function sanitizeString(string $v, bool $multiline = false): string
     {
-        $stripped = str_replace("\0", '', $v);
-        $normalized = \Normalizer::normalize($stripped, \Normalizer::FORM_C);
-        return $normalized !== false ? $normalized : $stripped;
+        $normalized = \Normalizer::normalize($v, \Normalizer::FORM_C);
+        if ($normalized === false) {
+            $normalized = $v;
+        }
+        $pattern = $multiline
+            ? '/[\x{0}-\x{8}\x{B}\x{C}\x{E}-\x{1F}\x{7F}-\x{9F}]/u'
+            : '/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u';
+        $stripped = preg_replace($pattern, '', $normalized);
+        return trim($stripped ?? $normalized);
     }
 
     public static function deepSanitize(mixed $value): mixed

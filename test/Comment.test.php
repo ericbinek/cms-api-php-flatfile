@@ -142,6 +142,45 @@ test("$ENTITY: deeply nested JSON body rejected with 400 INVALID_JSON", function
     cms_assert_equal('INVALID_JSON', $r['body']['error'] ?? null);
 });
 
+test("$ENTITY: leading/trailing whitespace is trimmed on create", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY);
+    $payload['text'] = '  trimmed value  ';
+    $r = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(201, $r['status'], 'expected 201: ' . $r['raw']);
+    cms_assert_equal('trimmed value', $r['body']['text'] ?? null);
+});
+
+test("$ENTITY: control characters are stripped on create", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY);
+    $payload['text'] = "clean\x00\x07ed";
+    $r = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(201, $r['status'], 'expected 201: ' . $r['raw']);
+    cms_assert_equal('cleaned', $r['body']['text'] ?? null);
+});
+
+test("$ENTITY: value over maxLength rejected with 400 VALIDATION_ERROR", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY);
+    $payload['text'] = str_repeat('a', 10001);
+    $r = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(400, $r['status']);
+    cms_assert_equal('VALIDATION_ERROR', $r['body']['error'] ?? null);
+});
+
+test("$ENTITY: value at maxLength accepted", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY);
+    $payload['text'] = str_repeat('a', 10000);
+    $r = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(201, $r['status'], 'expected 201: ' . $r['raw']);
+});
+
+test("$ENTITY: multiline field \"text\" keeps internal newlines", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY);
+    $payload['text'] = "first line\nsecond line";
+    $r = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(201, $r['status'], 'expected 201: ' . $r['raw']);
+    cms_assert_equal("first line\nsecond line", $r['body']['text'] ?? null);
+});
+
 test("$ENTITY: GET by id embeds \"author\" as an object; list stays flat", function () use ($ENTITY, $BASE) {
     $payload = cms_build_payload($ENTITY, partial: true);
     $created = cms_request('POST', $BASE, $payload)['body'];

@@ -79,7 +79,7 @@ final class DefinedTermRouter
                 Http::jsonError(Errors::forbidden("Role \"$role\" may not create " . self::ENTITY . '.', $requestPath));
                 return;
             }
-            $body = Http::parseBody();
+            $body = DefinedTerm::sanitize(Http::parseBody());
             $readonly = Access::readonlyViolations($role, $body);
             if (!empty($readonly)) {
                 Http::jsonError(Errors::validation(['Fields are not writable: ' . implode(', ', $readonly) . '.'], $requestPath));
@@ -132,7 +132,7 @@ final class DefinedTermRouter
                 Http::jsonError(Errors::forbidden("Role \"$role\" may not update " . self::ENTITY . '.', $requestPath));
                 return;
             }
-            $body = Http::parseBody();
+            $body = DefinedTerm::sanitize(Http::parseBody());
             $readonly = Access::readonlyViolations($role, $body);
             if (!empty($readonly)) {
                 Http::jsonError(Errors::validation(['Fields are not writable: ' . implode(', ', $readonly) . '.'], $requestPath));
