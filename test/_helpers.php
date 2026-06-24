@@ -285,6 +285,16 @@ function cms_sample_one(array $spec): mixed
     };
 }
 
+// Gives each build a distinct value for a unique-key string field. Without this
+// every payload would carry the same sample value and the second create in any
+// multi-record test would trip duplicate detection. Ref key components are
+// already unique because each is freshly created per build.
+function cms_unique_value(string $type, string $base): string
+{
+    $suffix = bin2hex(random_bytes(8));
+    return $type === 'URL' ? "$base/$suffix" : "$base-$suffix";
+}
+
 function cms_build_payload(string $entity, bool $partial = false): array
 {
     $cls = CMS_MODELS[$entity] ?? null;
@@ -292,6 +302,7 @@ function cms_build_payload(string $entity, bool $partial = false): array
     // System and internal fields are never sent — they are not client writable
     // and would be rejected with 400.
     $readonly = Access::readonlyFields();
+    $key = $cls::UNIQUE_KEY;
     $payload = [];
     foreach ($cls::FIELDS as $name => $spec) {
         if (in_array($name, $readonly, true)) continue;
@@ -301,6 +312,9 @@ function cms_build_payload(string $entity, bool $partial = false): array
             $payload[$name] = $spec['cardinality'] === 'many' ? [$value] : $value;
         } else {
             $v = cms_sample_one($spec);
+            if (in_array($name, $key, true) && $spec['kind'] === 'scalar' && is_string($v)) {
+                $v = cms_unique_value($spec['type'], $v);
+            }
             $payload[$name] = $spec['cardinality'] === 'many' ? [$v] : $v;
         }
     }

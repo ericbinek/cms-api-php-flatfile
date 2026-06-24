@@ -100,6 +100,8 @@ try {
     Http::jsonError(Errors::invalidJson($requestPath));
 } catch (\Cms\UnsupportedMediaTypeException) {
     Http::jsonError(Errors::unsupportedMediaType($requestPath));
+} catch (\Cms\DuplicateException $error) {
+    Http::jsonError(Errors::validation($error->details, $requestPath));
 } catch (\RangeException) {
     Http::jsonError(Errors::payloadTooLarge($requestPath));
 } catch (\Throwable $error) {

@@ -31,6 +31,10 @@ final class WebPage
     public const SEARCHABLE_FIELDS = ['headline', 'description', 'text'];
     public const SORTABLE_FIELDS = ['dateCreated', 'dateModified', 'headline', 'description', 'text', 'datePublished', 'dateModified', 'dateCreated', 'url', 'creativeWorkStatus'];
 
+    // Properties whose combined value must be unique across the collection.
+    // Empty when the entity allows duplicates.
+    public const UNIQUE_KEY = [];
+
     private const SYSTEM_FIELDS = ['id', 'dateCreated', 'dateModified', '@context', '@type'];
 
     private const REF_COLLECTIONS = ['Person' => 'persons.json', 'Organization' => 'organizations.json', 'ImageObject' => 'image-objects.json', 'WebSite' => 'web-sites.json'];
@@ -301,11 +305,49 @@ final class WebPage
         return $item;
     }
 
+    /**
+     * A candidate collides when some other record shares every unique-key value.
+     * Comparison runs on already-sanitized, ref-normalized data, so equal values
+     * are in canonical form. Entities without a key never collide.
+     */
+    private static function violatesUniqueKey(array $items, array $candidate, ?string $excludeId): bool
+    {
+        if (count(self::UNIQUE_KEY) === 0) {
+            return false;
+        }
+        foreach ($items as $item) {
+            if (($item['id'] ?? null) === $excludeId) {
+                continue;
+            }
+            $match = true;
+            foreach (self::UNIQUE_KEY as $field) {
+                if (($item[$field] ?? null) !== ($candidate[$field] ?? null)) {
+                    $match = false;
+                    break;
+                }
+            }
+            if ($match) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function duplicateError(): \Cms\DuplicateException
+    {
+        $fields = implode(' and ', self::UNIQUE_KEY);
+        $message = 'A ' . self::TYPE_NAME . ' with this ' . $fields . ' already exists.';
+        return new \Cms\DuplicateException([$message]);
+    }
+
     public static function create(array $rawData): array
     {
         return Storage::withLock(self::COLLECTION_FILE, function () use ($rawData) {
             $data = self::normalizeRefs($rawData);
             $items = Storage::readCollection(self::COLLECTION_FILE);
+            if (self::violatesUniqueKey($items, $data, null)) {
+                throw self::duplicateError();
+            }
             $now = gmdate('Y-m-d\TH:i:s.') . substr(sprintf('%03d', (int) ((microtime(true) - (int) microtime(true)) * 1000)), 0, 3) . 'Z';
             // Client data first, then the system-controlled fields — so a client
             // cannot spoof @context, @type, id or the timestamps via the body.
@@ -354,6 +396,9 @@ final class WebPage
                     'dateModified' => $now,
                 ],
             );
+            if (self::violatesUniqueKey($items, $updated, $current['id'])) {
+                throw self::duplicateError();
+            }
             $items[$index] = $updated;
             Storage::writeCollection(self::COLLECTION_FILE, $items);
             return $updated;

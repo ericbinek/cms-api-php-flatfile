@@ -193,3 +193,33 @@ test("$ENTITY: GET by id leaves an unresolvable \"image\" ref as its UUID", func
     $got = cms_request('GET', "$BASE/{$created['id']}")['body'];
     cms_assert_equal($dangling, $got['image'] ?? null);
 });
+
+$UNIQUE_KEY = ['url'];
+
+test("$ENTITY: duplicate unique key on create is rejected with 400 VALIDATION_ERROR", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY);
+    $first = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(201, $first['status'], 'first create expected 201');
+    // Re-posting the same payload reuses the same key values, so it must collide.
+    $second = cms_request('POST', $BASE, $payload);
+    cms_assert_equal(400, $second['status']);
+    cms_assert_equal('VALIDATION_ERROR', $second['body']['error'] ?? null);
+});
+
+test("$ENTITY: updating a record without changing its unique key succeeds", function () use ($ENTITY, $BASE, $UNIQUE_KEY) {
+    $item = cms_request('POST', $BASE, cms_build_payload($ENTITY))['body'];
+    $echo = [];
+    foreach ($UNIQUE_KEY as $f) $echo[$f] = $item[$f] ?? null;
+    $r = cms_request('PUT', "$BASE/{$item['id']}", $echo);
+    cms_assert_equal(200, $r['status'], 'self-update expected 200, got ' . $r['status'] . ': ' . $r['raw']);
+});
+
+test("$ENTITY: updating a record to collide with another's unique key is rejected with 400", function () use ($ENTITY, $BASE, $UNIQUE_KEY) {
+    $a = cms_request('POST', $BASE, cms_build_payload($ENTITY))['body'];
+    $b = cms_request('POST', $BASE, cms_build_payload($ENTITY))['body'];
+    $collide = [];
+    foreach ($UNIQUE_KEY as $f) $collide[$f] = $a[$f] ?? null;
+    $r = cms_request('PUT', "$BASE/{$b['id']}", $collide);
+    cms_assert_equal(400, $r['status']);
+    cms_assert_equal('VALIDATION_ERROR', $r['body']['error'] ?? null);
+});

@@ -7,6 +7,21 @@ final class UnsupportedMediaTypeException extends \RuntimeException
 {
 }
 
+// A unique-key collision raised from a model. Carries the response details so
+// the server can report it in the existing validation envelope (400).
+final class DuplicateException extends \RuntimeException
+{
+    /** @var string[] */
+    public array $details;
+
+    /** @param string[] $details */
+    public function __construct(array $details)
+    {
+        parent::__construct('Unique key collision.');
+        $this->details = $details;
+    }
+}
+
 final class Http
 {
     public const MAX_BODY_SIZE = 1048576;
