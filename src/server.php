@@ -9,6 +9,7 @@ require_once __DIR__ . '/autoload.php';
 use Cms\Http;
 use Cms\Errors;
 use Cms\Lib\Auth;
+use Cms\Lib\RateLimit;
 use Cms\Lib\UnauthorizedException;
 use Cms\Models\Account;
 use Cms\Routers\AuthRouter;
@@ -39,6 +40,16 @@ register_shutdown_function(static function () use ($method, $path, $start): void
 });
 
 try {
+    // Rate limit before anything else, so every request counts against the
+    // per-IP window. REMOTE_ADDR (the connection peer) is the only trusted
+    // source — a forwarded header would be client-spoofable and these targets
+    // run without a proxy.
+    $retryAfter = RateLimit::check($_SERVER['REMOTE_ADDR'] ?? '', $method);
+    if ($retryAfter !== null) {
+        Http::jsonError(Errors::tooManyRequests($requestPath), ['Retry-After' => (string) $retryAfter]);
+        return;
+    }
+
     if ($method === 'OPTIONS') {
         Http::preflight();
         return;

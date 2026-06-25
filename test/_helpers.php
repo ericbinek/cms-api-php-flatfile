@@ -99,7 +99,15 @@ function cms_start_server(array $opts = []): array
         1 => ['file', '/dev/null', 'w'],
         2 => ['file', '/dev/null', 'w'],
     ];
-    $baseEnv = ['DATA_DIR' => $dataDir, 'PORT' => (string) $port];
+    // Default the rate limits high so the conformance suite never trips them —
+    // every request shares one server and one loopback IP. The rate-limit suite
+    // passes small values through 'env' to exercise the limiter deliberately.
+    $baseEnv = [
+        'DATA_DIR' => $dataDir,
+        'PORT' => (string) $port,
+        'RATE_LIMIT_READ_PER_MINUTE' => '1000000',
+        'RATE_LIMIT_WRITE_PER_MINUTE' => '1000000',
+    ];
     // Do not inherit ADMIN_USER/ADMIN_PASSWORD unless the test asks for the env
     // bootstrap — a seeded store must stay deterministic.
     $inherited = array_merge($_ENV, getenv());
@@ -165,9 +173,15 @@ function cms_raw_request(string $baseUrl, string $method, string $path, ?array $
     }
     $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $rawHeaders = substr($response, 0, $headerSize);
     $rawBody = substr($response, $headerSize);
+    $hdrs = [];
+    foreach (explode("\r\n", $rawHeaders) as $line) {
+        $parts = explode(': ', $line, 2);
+        if (count($parts) === 2) $hdrs[strtolower($parts[0])] = $parts[1];
+    }
     $decoded = $rawBody !== '' ? json_decode($rawBody, true) : null;
-    return ['status' => $status, 'body' => $decoded, 'raw' => $rawBody];
+    return ['status' => $status, 'body' => $decoded, 'headers' => $hdrs, 'raw' => $rawBody];
 }
 
 // Logs in against an explicit base URL and returns the session token.

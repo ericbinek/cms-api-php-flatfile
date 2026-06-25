@@ -58,6 +58,11 @@ final class Errors
         return self::build(405, 'METHOD_NOT_ALLOWED', "Method not allowed. Allowed: $list.", [], $path);
     }
 
+    public static function tooManyRequests(string $path): array
+    {
+        return self::build(429, 'TOO_MANY_REQUESTS', 'Rate limit exceeded. Try again later.', [], $path);
+    }
+
     public static function preconditionFailed(string $path): array
     {
         return self::build(412, 'PRECONDITION_FAILED', 'ETag does not match current resource state.', [], $path);

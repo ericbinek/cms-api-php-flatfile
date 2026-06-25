@@ -47,9 +47,12 @@ final class Http
         }
     }
 
-    public static function json(int $status, mixed $data): void
+    public static function json(int $status, mixed $data, array $extraHeaders = []): void
     {
         foreach (self::CORS_HEADERS as $name => $value) {
+            header("$name: $value");
+        }
+        foreach ($extraHeaders as $name => $value) {
             header("$name: $value");
         }
         if ($status === 204) {
@@ -70,9 +73,9 @@ final class Http
         echo $body;
     }
 
-    public static function jsonError(array $error): void
+    public static function jsonError(array $error, array $extraHeaders = []): void
     {
-        self::json($error['status'], $error);
+        self::json($error['status'], $error, $extraHeaders);
     }
 
     public static function setLocation(string $location): void

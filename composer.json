@@ -2,7 +2,7 @@
     "name": "cms/cms-api-php-flatfile",
     "description": "Standalone schema.org-aligned CMS API on PHP — no runtime dependencies.",
     "type": "project",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "license": "MIT",
     "authors": [
         {
