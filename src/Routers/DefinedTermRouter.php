@@ -170,7 +170,13 @@ final class DefinedTermRouter
                     return;
                 }
             }
+            // update() returns null when the record vanished between the lookup
+            // above and the write (concurrent delete) — a 404, same as the lookup.
             $updated = DefinedTerm::update($id, $body);
+            if ($updated === null) {
+                Http::jsonError(Errors::notFound(DefinedTerm::TYPE_NAME, $requestPath));
+                return;
+            }
             Http::json(200, Access::stripFields($role, $updated), etag: DefinedTerm::etagOf($updated));
             return;
         }

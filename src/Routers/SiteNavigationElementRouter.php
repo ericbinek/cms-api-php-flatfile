@@ -170,7 +170,13 @@ final class SiteNavigationElementRouter
                     return;
                 }
             }
+            // update() returns null when the record vanished between the lookup
+            // above and the write (concurrent delete) — a 404, same as the lookup.
             $updated = SiteNavigationElement::update($id, $body);
+            if ($updated === null) {
+                Http::jsonError(Errors::notFound(SiteNavigationElement::TYPE_NAME, $requestPath));
+                return;
+            }
             Http::json(200, Access::stripFields($role, $updated), etag: SiteNavigationElement::etagOf($updated));
             return;
         }

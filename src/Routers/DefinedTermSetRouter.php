@@ -170,7 +170,13 @@ final class DefinedTermSetRouter
                     return;
                 }
             }
+            // update() returns null when the record vanished between the lookup
+            // above and the write (concurrent delete) — a 404, same as the lookup.
             $updated = DefinedTermSet::update($id, $body);
+            if ($updated === null) {
+                Http::jsonError(Errors::notFound(DefinedTermSet::TYPE_NAME, $requestPath));
+                return;
+            }
             Http::json(200, Access::stripFields($role, $updated), etag: DefinedTermSet::etagOf($updated));
             return;
         }

@@ -170,7 +170,13 @@ final class CategoryCodeRouter
                     return;
                 }
             }
+            // update() returns null when the record vanished between the lookup
+            // above and the write (concurrent delete) — a 404, same as the lookup.
             $updated = CategoryCode::update($id, $body);
+            if ($updated === null) {
+                Http::jsonError(Errors::notFound(CategoryCode::TYPE_NAME, $requestPath));
+                return;
+            }
             Http::json(200, Access::stripFields($role, $updated), etag: CategoryCode::etagOf($updated));
             return;
         }
