@@ -47,7 +47,13 @@ final class Http
         }
     }
 
-    public static function json(int $status, mixed $data, array $extraHeaders = []): void
+    /**
+     * Single-record responses pass the record's canonical ETag (the stored
+     * record's version — the same value If-Match is checked against). Without
+     * one the ETag falls back to a hash of the response body; lists and errors
+     * have no single record version.
+     */
+    public static function json(int $status, mixed $data, array $extraHeaders = [], ?string $etag = null): void
     {
         foreach (self::CORS_HEADERS as $name => $value) {
             header("$name: $value");
@@ -60,7 +66,7 @@ final class Http
             return;
         }
         $body = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        $etag = '"' . substr(hash('sha256', $body), 0, 16) . '"';
+        $etag ??= '"' . substr(hash('sha256', $body), 0, 16) . '"';
         $ifNoneMatch = $_SERVER['HTTP_IF_NONE_MATCH'] ?? null;
         if ($ifNoneMatch !== null && ($ifNoneMatch === $etag || $ifNoneMatch === '*')) {
             http_response_code(304);

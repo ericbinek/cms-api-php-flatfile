@@ -194,6 +194,30 @@ test("$ENTITY: GET by id leaves an unresolvable \"inCodeSet\" ref as its UUID", 
     cms_assert_equal($dangling, $got['inCodeSet'] ?? null);
 });
 
+test("$ENTITY: fresh ETag from GET satisfies If-Match on PUT, then DELETE", function () use ($ENTITY, $BASE) {
+    $payload = cms_build_payload($ENTITY, partial: true);
+    $created = cms_request('POST', $BASE, $payload)['body'];
+
+    $got = cms_request('GET', "$BASE/{$created['id']}");
+    cms_assert_equal(200, $got['status']);
+    $etag = $got['headers']['etag'] ?? '';
+    cms_assert($etag !== '', 'ETag header should be present');
+
+    // The observable ETag names the record version: a conditional GET with it is a 304.
+    $notModified = cms_request('GET', "$BASE/{$created['id']}", null, ['If-None-Match' => $etag]);
+    cms_assert_equal(304, $notModified['status']);
+
+    // The honest fresh path: PUT with the ETag the GET handed out succeeds.
+    $put = cms_request('PUT', "$BASE/{$created['id']}", [], ['If-Match' => $etag]);
+    cms_assert_equal(200, $put['status'], "PUT with fresh If-Match expected 200, got {$put['status']}: {$put['raw']}");
+
+    // The PUT response carries the new record version; DELETE with it succeeds.
+    $putEtag = $put['headers']['etag'] ?? '';
+    cms_assert($putEtag !== '', 'PUT response should carry an ETag');
+    $del = cms_request('DELETE', "$BASE/{$created['id']}", null, ['If-Match' => $putEtag]);
+    cms_assert_equal(204, $del['status']);
+});
+
 $UNIQUE_KEY = ['codeValue', 'inCodeSet'];
 
 test("$ENTITY: duplicate unique key on create is rejected with 400 VALIDATION_ERROR", function () use ($ENTITY, $BASE) {

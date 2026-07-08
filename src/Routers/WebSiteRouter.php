@@ -92,7 +92,7 @@ final class WebSiteRouter
             }
             $created = WebSite::create(Access::applyCreateDefaults(self::ENTITY, $body, $principal['accountId']));
             Http::setLocation(self::BASE . '/' . $created['id']);
-            Http::json(201, Access::stripFields($role, $created));
+            Http::json(201, Access::stripFields($role, $created), etag: WebSite::etagOf($created));
             return;
         }
 
@@ -123,7 +123,9 @@ final class WebSiteRouter
                 Http::jsonError(Errors::notFound(WebSite::TYPE_NAME, $requestPath));
                 return;
             }
-            Http::json(200, Access::stripFields($role, WebSite::embedRefs($item)));
+            // The ETag names the stored record's version, not the role- and
+            // embedding-shaped body — it must satisfy a later If-Match.
+            Http::json(200, Access::stripFields($role, WebSite::embedRefs($item)), etag: WebSite::etagOf($item));
             return;
         }
 
@@ -169,7 +171,7 @@ final class WebSiteRouter
                 }
             }
             $updated = WebSite::update($id, $body);
-            Http::json(200, Access::stripFields($role, $updated));
+            Http::json(200, Access::stripFields($role, $updated), etag: WebSite::etagOf($updated));
             return;
         }
 

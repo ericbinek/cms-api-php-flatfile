@@ -92,7 +92,7 @@ final class ImageObjectRouter
             }
             $created = ImageObject::create(Access::applyCreateDefaults(self::ENTITY, $body, $principal['accountId']));
             Http::setLocation(self::BASE . '/' . $created['id']);
-            Http::json(201, Access::stripFields($role, $created));
+            Http::json(201, Access::stripFields($role, $created), etag: ImageObject::etagOf($created));
             return;
         }
 
@@ -123,7 +123,9 @@ final class ImageObjectRouter
                 Http::jsonError(Errors::notFound(ImageObject::TYPE_NAME, $requestPath));
                 return;
             }
-            Http::json(200, Access::stripFields($role, ImageObject::embedRefs($item)));
+            // The ETag names the stored record's version, not the role- and
+            // embedding-shaped body — it must satisfy a later If-Match.
+            Http::json(200, Access::stripFields($role, ImageObject::embedRefs($item)), etag: ImageObject::etagOf($item));
             return;
         }
 
@@ -169,7 +171,7 @@ final class ImageObjectRouter
                 }
             }
             $updated = ImageObject::update($id, $body);
-            Http::json(200, Access::stripFields($role, $updated));
+            Http::json(200, Access::stripFields($role, $updated), etag: ImageObject::etagOf($updated));
             return;
         }
 

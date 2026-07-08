@@ -92,7 +92,7 @@ final class CategoryCodeSetRouter
             }
             $created = CategoryCodeSet::create(Access::applyCreateDefaults(self::ENTITY, $body, $principal['accountId']));
             Http::setLocation(self::BASE . '/' . $created['id']);
-            Http::json(201, Access::stripFields($role, $created));
+            Http::json(201, Access::stripFields($role, $created), etag: CategoryCodeSet::etagOf($created));
             return;
         }
 
@@ -123,7 +123,9 @@ final class CategoryCodeSetRouter
                 Http::jsonError(Errors::notFound(CategoryCodeSet::TYPE_NAME, $requestPath));
                 return;
             }
-            Http::json(200, Access::stripFields($role, CategoryCodeSet::embedRefs($item)));
+            // The ETag names the stored record's version, not the role- and
+            // embedding-shaped body — it must satisfy a later If-Match.
+            Http::json(200, Access::stripFields($role, CategoryCodeSet::embedRefs($item)), etag: CategoryCodeSet::etagOf($item));
             return;
         }
 
@@ -169,7 +171,7 @@ final class CategoryCodeSetRouter
                 }
             }
             $updated = CategoryCodeSet::update($id, $body);
-            Http::json(200, Access::stripFields($role, $updated));
+            Http::json(200, Access::stripFields($role, $updated), etag: CategoryCodeSet::etagOf($updated));
             return;
         }
 

@@ -92,7 +92,7 @@ final class CommentRouter
             }
             $created = Comment::create(Access::applyCreateDefaults(self::ENTITY, $body, $principal['accountId']));
             Http::setLocation(self::BASE . '/' . $created['id']);
-            Http::json(201, Access::stripFields($role, $created));
+            Http::json(201, Access::stripFields($role, $created), etag: Comment::etagOf($created));
             return;
         }
 
@@ -123,7 +123,9 @@ final class CommentRouter
                 Http::jsonError(Errors::notFound(Comment::TYPE_NAME, $requestPath));
                 return;
             }
-            Http::json(200, Access::stripFields($role, Comment::embedRefs($item)));
+            // The ETag names the stored record's version, not the role- and
+            // embedding-shaped body — it must satisfy a later If-Match.
+            Http::json(200, Access::stripFields($role, Comment::embedRefs($item)), etag: Comment::etagOf($item));
             return;
         }
 
@@ -169,7 +171,7 @@ final class CommentRouter
                 }
             }
             $updated = Comment::update($id, $body);
-            Http::json(200, Access::stripFields($role, $updated));
+            Http::json(200, Access::stripFields($role, $updated), etag: Comment::etagOf($updated));
             return;
         }
 
